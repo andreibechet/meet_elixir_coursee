@@ -4,7 +4,7 @@ defmodule Streamers do
   """
 
   require Record
-  Record.defrecord :m3u8, [program_id: nil, path: nil, bandwidth: nil]
+  Record.defrecord :m3u8, [program_id: nil, path: nil, bandwidth: nil, ts_files: []]
 
   @doc """
   Find streaming index file in the given directory.
@@ -25,11 +25,14 @@ defmodule Streamers do
       fn(pid) -> IO.read(pid, 25) == "#EXTM3U\n#EXT-X-STREAM-INF" end)
   end
 
+  @doc """
+  Extract M3U8 records form the index file.
+  """
   def extract_m3u8(index_file) do
     []
     File.open!(index_file,
       fn(pid) ->
-        IO.read(pid, :line) # ignore the first line 
+        IO.read(pid, :line) # ignore the first line
         do_extract_m3u8(pid, Path.dirname(index_file), [])
       end)
   end
@@ -53,6 +56,34 @@ defmodule Streamers do
     record = m3u8(program_id: program_id - ?0, path: path, bandwidth: bandwidth )
     # do the - ?0 in order to convert it from ascii to actual int value (ascii start at 48)
     do_extract_m3u8(pid, dir, [record | acc])
+  end
+
+  @doc """
+  Process M3U* records to get the ts_files
+  """
+  def process_m3u8(m3u8s) do
+    Enum.map(m3u8s, &do_process_m3u8(&1)) # process_m3u8 is public and the do_.. refers to the private method
+  end
+
+  defp do_process_m3u8(m3u8(path: path) = m3u8) do # you match for what's to the left but you still get the whole structure in the right
+    File.open!(path,
+      fn(pid) ->
+        IO.read(pid, :line) # discards #EXTM3U
+        IO.read(pid, :line)
+        files = do_process_m3u8(pid, [])
+        m3u8(m3u8, ts_files: files)
+      end)
+  end
+
+  defp do_process_m3u8(pid, acc) do
+    case IO.read(pid, :line) do
+      "#EXT-X-ENDLIST\n" -> Enum.reverse(acc)
+      _ext_inf -> # discards #EXTINF:10, => basically when you read something, ignore this line and than read the next
+        # prepend a variable with _ to mark it as intentionally unused
+        # process: 265c58c98c2d8b04f21ea9d7b73ee4af-00001.ts
+        file = IO.read(pid, :line) |> String.strip
+        do_process_m3u8(pid, [file | acc])
+    end
   end
 
 end

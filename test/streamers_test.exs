@@ -16,10 +16,18 @@ defmodule StreamersTest do
 
   test "extracts m3u8 from index file" do
     m3u8s = Streamers.extract_m3u8(@index_file)
-    assert Enum.at(m3u8s, 0) == Streamers.m3u8(program_id: 1,
-                                    bandwidth: 110000,
-                                    path: "test/fixtures/emberjs/8bda35243c7c0a7fc69ebe1383c6464c.m3u8")
-
+    assert Enum.at(m3u8s, 0) ==
+      Streamers.m3u8(program_id: 1,
+                  bandwidth: 110000,
+                  path: "test/fixtures/emberjs/8bda35243c7c0a7fc69ebe1383c6464c.m3u8")
+    assert length(m3u8s) == 5
   end
 
+  test "process m3u8" do
+    m3u8s = @index_file
+            |> Streamers.extract_m3u8
+            |> Streamers.process_m3u8
+    first_m3u8 = Enum.at(m3u8s, 0)
+    assert length(Streamers.m3u8(first_m3u8, :ts_files)) == 510
+  end
 end
