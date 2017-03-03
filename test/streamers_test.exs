@@ -16,7 +16,6 @@ defmodule StreamersTest do
 
   test "extracts m3u8 from index file" do
     m3u8s = Streamers.extract_m3u8(@index_file)
-    IO.puts(m3u8s)
     assert Enum.at(m3u8s, 0) == Streamers.m3u8(program_id: 1,
                                     bandwidth: 110000,
                                     path: "test/fixtures/emberjs/8bda35243c7c0a7fc69ebe1383c6464c.m3u8")

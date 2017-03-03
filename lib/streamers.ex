@@ -29,7 +29,7 @@ defmodule Streamers do
     []
     File.open!(index_file,
       fn(pid) ->
-        IO.read(pid, :line)
+        IO.read(pid, :line) # ignore the first line 
         do_extract_m3u8(pid, Path.dirname(index_file), [])
       end)
   end
