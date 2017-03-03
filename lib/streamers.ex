@@ -62,7 +62,24 @@ defmodule Streamers do
   Process M3U* records to get the ts_files
   """
   def process_m3u8(m3u8s) do
-    Enum.map(m3u8s, &do_process_m3u8(&1)) # process_m3u8 is public and the do_.. refers to the private method
+    Enum.map(m3u8s, &do_parallel_process_m3u8(&1, self())) # process_m3u8 is public and the do_.. refers to the private method
+    do_collect_m3u8(length(m3u8s), [])
+  end
+
+  defp do_collect_m3u8(0, acc), do: acc
+
+  defp do_collect_m3u8(count, acc) do
+    receive do
+      { :m3u8, updated_m3u8 } ->
+        do_collect_m3u8(count - 1, [ updated_m3u8 | acc ])
+    end
+  end
+
+  defp do_parallel_process_m3u8(m3u8, parent_pid) do
+    spawn_link(fn ->
+      updated_m3u8 = do_process_m3u8(m3u8)
+      send(parent_pid, {:m3u8, updated_m3u8})
+    end)
   end
 
   defp do_process_m3u8(m3u8(path: path) = m3u8) do # you match for what's to the left but you still get the whole structure in the right
